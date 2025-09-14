@@ -1,25 +1,28 @@
 {% extends "layout.html" %}
 {% block content %}
-  <h2>All Reported Items</h2>
+  <h2>Available Items</h2>
 
   {% if items and items|length > 0 %}
     <div class="items">
       {% for item in items %}
         <article class="item-card">
-          <header>
-            <h3>{{ item['name'] }}</h3>
-            <small class="date">{{ item['date'] }}</small>
-          </header>
-          {% if item['description'] %}
-            <p>{{ item['description'] }}</p>
-          {% else %}
-            <p class="muted">No description provided.</p>
+          {% if item['image_filename'] %}
+            <a href="{{ url_for('item_detail', item_id=item['id']) }}">
+              <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ item['image_filename']) }}" alt="{{ item['name'] }}">
+            </a>
           {% endif %}
+          <header>
+            <h3><a href="{{ url_for('item_detail', item_id=item['id']) }}">{{ item['name'] }}</a></h3>
+            <small class="date">{{ item['date_found'] or '—' }}</small>
+          </header>
+          <p class="muted">{{ item['location'] or 'Location unknown' }}</p>
+          <footer>
+            <a class="btn" href="{{ url_for('item_detail', item_id=item['id']) }}">View details</a>
+          </footer>
         </article>
       {% endfor %}
     </div>
   {% else %}
-    <p class="muted">No items reported yet. Be the first to <a href="{{ url_for('report') }}">report an item</a>.</p>
+    <p class="muted">No items available. Be the first to <a href="{{ url_for('report') }}">report an item</a>.</p>
   {% endif %}
 {% endblock %}
-

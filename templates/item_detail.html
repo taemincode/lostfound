@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block content %}
+  <article class="item-card">
+    {% if item['image_filename'] %}
+      <img class="detail-image" src="{{ url_for('static', filename='uploads/' ~ item['image_filename']) }}" alt="{{ item['name'] }}">
+    {% endif %}
+    <header>
+      <h2>{{ item['name'] }}</h2>
+      <small class="date">Date Found: {{ item['date_found'] or '—' }}</small>
+    </header>
+    <p><strong>Location:</strong> {{ item['location'] or 'Unknown' }}</p>
+
+    <p><strong>Status:</strong> {{ item['status'] or 'available' }}</p>
+
+    {% if (item['status'] or 'available') == 'available' %}
+      <form method="post" action="{{ url_for('claim_item', item_id=item['id']) }}" style="margin-top: 12px;">
+        <button class="btn primary" type="submit">Mark as Claimed</button>
+      </form>
+    {% else %}
+      <p class="muted">This item has been claimed.</p>
+    {% endif %}
+
+    <p style="margin-top: 16px;">
+      <a class="btn" href="{{ url_for('index') }}">Back to list</a>
+    </p>
+  </article>
+{% endblock %}

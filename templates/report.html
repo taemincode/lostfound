@@ -2,20 +2,36 @@
 {% block content %}
   <h2>Report a Lost Item</h2>
 
-  <form class="form" method="post" action="{{ url_for('report') }}">
+  <form class="form" method="post" action="{{ url_for('report') }}" enctype="multipart/form-data">
     <div class="field">
       <label for="name">Item Name</label>
       <input type="text" id="name" name="name" placeholder="e.g., Blue Backpack" required>
     </div>
 
     <div class="field">
-      <label for="description">Description</label>
-      <textarea id="description" name="description" rows="4" placeholder="Details like color, stickers, where it was lost, etc."></textarea>
+      <label for="image">Photo</label>
+      <input type="file" id="image" name="image" accept="image/*" required>
+      <small class="muted">PNG, JPG, GIF, or WEBP. Max 5MB.</small>
     </div>
 
     <div class="field">
-      <label for="date">Date Lost</label>
-      <input type="date" id="date" name="date" value="{{ today }}">
+      <div id="preview" class="preview hidden">
+          <img id="image-preview" class="preview-image" alt="Selected image preview">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="location">Location Found</label>
+      <input type="text" id="location" name="location" placeholder="e.g., Library front desk">
+    </div>
+
+    <div class="field">
+      <label for="date_found">Date Found</label>
+      <input type="date" id="date_found" name="date_found" value="{{ today }}">
+    </div>
+
+    <div id="preview" class="preview hidden">
+      <img id="image-preview" class="preview-image" alt="Selected image preview">
     </div>
 
     <div class="actions">
@@ -23,5 +39,31 @@
       <a class="btn" href="{{ url_for('index') }}">Cancel</a>
     </div>
   </form>
-{% endblock %}
 
+  <script>
+    (function () {
+      const input = document.getElementById('image');
+      const container = document.getElementById('preview');
+      const img = document.getElementById('image-preview');
+      if (!input || !container || !img) return;
+      let currentUrl = null;
+      input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        if (!file) {
+          container.classList.add('hidden');
+          if (currentUrl) { URL.revokeObjectURL(currentUrl); currentUrl = null; }
+          img.removeAttribute('src');
+          return;
+        }
+        if (!file.type || !file.type.startsWith('image/')) {
+          container.classList.add('hidden');
+          return;
+        }
+        if (currentUrl) { URL.revokeObjectURL(currentUrl); }
+        currentUrl = URL.createObjectURL(file);
+        img.src = currentUrl;
+        container.classList.remove('hidden');
+      });
+    })();
+  </script>
+{% endblock %}

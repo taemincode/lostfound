@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h2>Report a Lost Item</h2>
+
+  <form class="form" method="post" action="{{ url_for('report') }}">
+    <div class="field">
+      <label for="name">Item Name</label>
+      <input type="text" id="name" name="name" placeholder="e.g., Blue Backpack" required>
+    </div>
+
+    <div class="field">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="4" placeholder="Details like color, stickers, where it was lost, etc."></textarea>
+    </div>
+
+    <div class="field">
+      <label for="date">Date Lost</label>
+      <input type="date" id="date" name="date" value="{{ today }}">
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" type="submit">Submit Report</button>
+      <a class="btn" href="{{ url_for('index') }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}
+

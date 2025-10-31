@@ -3,7 +3,6 @@ import sqlite3
 import datetime as dt
 import imghdr
 from uuid import uuid4
-from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request, redirect, url_for, flash, abort
 
 
@@ -93,6 +92,10 @@ def report():
         if not name:
             flash("Item name is required.", "error")
             return redirect(url_for("report"))
+        
+        if not image_file or not image_file.filename:
+            flash("Image file is required.", "error")
+            return redirect(url_for("report"))
 
         if not date_found:
             date_found = dt.date.today().isoformat()
@@ -176,5 +179,5 @@ def too_large(e):
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port, debug=True)

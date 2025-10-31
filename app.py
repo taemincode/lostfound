@@ -1,15 +1,16 @@
 import os
 import sqlite3
 import datetime as dt
-import imghdr
+from io import BytesIO
 from uuid import uuid4
+from PIL import Image, UnidentifiedImageError
 from flask import Flask, render_template, request, redirect, url_for, flash, abort
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASE_DIR, "lostfound.db")
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
-ALLOWED_IMGHDR = {"jpeg", "png", "gif", "webp"}
+ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "GIF", "WEBP"}
 
 
 def get_db_connection():
@@ -103,17 +104,26 @@ def report():
         image_filename = None
         if image_file and image_file.filename:
             # Validate and save image
-            header = image_file.stream.read(512)
-            image_file.stream.seek(0)
-            kind = imghdr.what(None, h=header)
-            if not kind or kind not in ALLOWED_IMGHDR:
+            file_bytes = image_file.read()
+            try:
+                image = Image.open(BytesIO(file_bytes))
+                image_format = (image.format or "").upper()
+                image.verify()
+                image.close()
+            except (UnidentifiedImageError, OSError, ValueError):
                 flash("Unsupported image type. Please upload PNG, JPG, GIF, or WEBP.", "error")
                 return redirect(url_for("report"))
-            ext_map = {"jpeg": ".jpg", "png": ".png", "gif": ".gif", "webp": ".webp"}
-            unique_name = uuid4().hex + ext_map.get(kind, "")
+
+            if image_format not in ALLOWED_IMAGE_FORMATS:
+                flash("Unsupported image type. Please upload PNG, JPG, GIF, or WEBP.", "error")
+                return redirect(url_for("report"))
+
+            ext_map = {"JPEG": ".jpg", "PNG": ".png", "GIF": ".gif", "WEBP": ".webp"}
+            unique_name = uuid4().hex + ext_map.get(image_format, "")
             save_path = os.path.join(app.config["UPLOAD_FOLDER"], unique_name)
             try:
-                image_file.save(save_path)
+                with open(save_path, "wb") as fout:
+                    fout.write(file_bytes)
                 image_filename = unique_name
             except Exception:
                 flash("Failed to save image.", "error")

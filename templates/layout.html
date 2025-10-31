@@ -10,9 +10,14 @@
     <header class="site-header">
       <div class="container">
         <h1><a href="{{ url_for('index') }}">FEM Lost &amp; Found</a></h1>
-        <nav>
+        <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav class="site-nav" data-open="false">
           <a href="{{ url_for('index') }}">Home</a>
-          <a class="btn" href="{{ url_for('report') }}">Report Item</a>
+          <a class="btn primary" href="{{ url_for('report') }}">Report Item</a>
         </nav>
       </div>
     </header>
@@ -32,7 +37,26 @@
     </main>
 
     <footer class="site-footer">
-      <div class="container">School Lost &amp; Found Prototype</div>
+      <div class="container">SA Project by <a href="https://taemincode.github.io" style="text-decoration: none; color: inherit;">Taemin Park</a></div>
     </footer>
+    <script>
+      (function() {
+        const toggle = document.querySelector('.nav-toggle');
+        const nav = document.querySelector('.site-nav');
+        const links = nav ? nav.querySelectorAll('a') : [];
+        if (!toggle || !nav) return;
+        toggle.addEventListener('click', () => {
+          const isOpen = nav.getAttribute('data-open') === 'true';
+          nav.setAttribute('data-open', String(!isOpen));
+          toggle.setAttribute('aria-expanded', String(!isOpen));
+        });
+        links.forEach((link) => {
+          link.addEventListener('click', () => {
+            nav.setAttribute('data-open', 'false');
+            toggle.setAttribute('aria-expanded', 'false');
+          });
+        });
+      })();
+    </script>
   </body>
   </html>

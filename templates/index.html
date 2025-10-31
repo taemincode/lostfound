@@ -8,7 +8,7 @@
         <article class="item-card">
           {% if item['image_filename'] %}
             <a href="{{ url_for('item_detail', item_id=item['id']) }}">
-              <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ item['image_filename']) }}" alt="{{ item['name'] }}">
+              <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ item['image_filename']) }}" alt="{{ item['name'] }}" loading="lazy">
             </a>
           {% endif %}
           <header>
@@ -26,6 +26,6 @@
       {% endfor %}
     </div>
   {% else %}
-    <p class="muted">No items available. Be the first to <a href="{{ url_for('report') }}">report an item</a>.</p>
+    <p class="muted">No items available. Be the first to <a href="{{ url_for('report') }}">report an item</a>!</p>
   {% endif %}
 {% endblock %}

@@ -1,16 +1,53 @@
+from __future__ import annotations
+
 import os
 import sqlite3
 import datetime as dt
 from io import BytesIO
 from uuid import uuid4
 from PIL import Image, UnidentifiedImageError
+from pillow_heif import register_heif_opener
 from flask import Flask, render_template, request, redirect, url_for, flash, abort
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASE_DIR, "lostfound.db")
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
-ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "GIF", "WEBP"}
+ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "GIF", "WEBP", "HEIC", "HEIF"}
+
+register_heif_opener()
+MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE", 10 * 1024 * 1024))
+MAX_SAVED_IMAGE_SIZE = int(os.environ.get("MAX_SAVED_IMAGE_SIZE", 5 * 1024 * 1024))
+
+
+def shrink_image_to_target(file_bytes: bytes, format_hint: str) -> tuple[bytes | None, str | None]:
+    """Best-effort compression to keep images under MAX_SAVED_IMAGE_SIZE."""
+    if len(file_bytes) <= MAX_SAVED_IMAGE_SIZE:
+        return file_bytes, format_hint
+    try:
+        with Image.open(BytesIO(file_bytes)) as image:
+            image = image.convert("RGB")
+            width, height = image.size
+            quality = 85
+            for _ in range(8):
+                buffer = BytesIO()
+                image.save(buffer, format="JPEG", quality=quality, optimize=True)
+                data = buffer.getvalue()
+                if len(data) <= MAX_SAVED_IMAGE_SIZE:
+                    return data, "JPEG"
+                if quality > 60:
+                    quality -= 10
+                    continue
+                new_width = max(int(width * 0.85), 320)
+                new_height = max(int(height * 0.85), 320)
+                if new_width == width and new_height == height:
+                    break
+                image = image.resize((new_width, new_height), Image.LANCZOS)
+                width, height = image.size
+                quality = 85
+    except Exception:
+        return None, None
+    return None, None
 
 
 def get_db_connection():
@@ -58,7 +95,7 @@ def init_db():
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024))
+app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE
 
 # Ensure the database and table exist at startup (Flask 3 removed before_first_request)
 init_db()
@@ -105,20 +142,40 @@ def report():
         if image_file and image_file.filename:
             # Validate and save image
             file_bytes = image_file.read()
-            try:
-                image = Image.open(BytesIO(file_bytes))
-                image_format = (image.format or "").upper()
-                image.verify()
-                image.close()
-            except (UnidentifiedImageError, OSError, ValueError):
-                flash("Unsupported image type. Please upload PNG, JPG, GIF, or WEBP.", "error")
+            if not file_bytes:
+                flash("Image upload failed. Please choose the photo again.", "error")
                 return redirect(url_for("report"))
+
+            try:
+                with Image.open(BytesIO(file_bytes)) as image:
+                    image_format = (image.format or "").upper()
+                    image.verify()
+            except (UnidentifiedImageError, OSError, ValueError):
+                flash("Unsupported image type. Please upload PNG, JPG, GIF, WEBP, or HEIC.", "error")
+                return redirect(url_for("report"))
+
+            if image_format in {"HEIC", "HEIF"}:
+                try:
+                    with Image.open(BytesIO(file_bytes)) as image:
+                        converted = image.convert("RGB")
+                        buffer = BytesIO()
+                        converted.save(buffer, format="JPEG", quality=90)
+                        file_bytes = buffer.getvalue()
+                        image_format = "JPEG"
+                except Exception:
+                    flash("Unable to process HEIC image. Please choose a JPG or PNG.", "error")
+                    return redirect(url_for("report"))
 
             if image_format not in ALLOWED_IMAGE_FORMATS:
-                flash("Unsupported image type. Please upload PNG, JPG, GIF, or WEBP.", "error")
+                flash("Unsupported image type. Please upload PNG, JPG, GIF, WEBP, or HEIC.", "error")
                 return redirect(url_for("report"))
 
-            ext_map = {"JPEG": ".jpg", "PNG": ".png", "GIF": ".gif", "WEBP": ".webp"}
+            file_bytes, image_format = shrink_image_to_target(file_bytes, image_format)
+            if not file_bytes or not image_format:
+                flash("Image is too large even after compression. Please upload a smaller image.", "error")
+                return redirect(url_for("report"))
+
+            ext_map = {"JPEG": ".jpg", "PNG": ".png", "GIF": ".gif", "WEBP": ".webp", "HEIC": ".heic", "HEIF": ".heif"}
             unique_name = uuid4().hex + ext_map.get(image_format, "")
             save_path = os.path.join(app.config["UPLOAD_FOLDER"], unique_name)
             try:
@@ -184,7 +241,8 @@ def claim_item(item_id: int):
 
 @app.errorhandler(413)
 def too_large(e):
-    flash("Image too large. Max 5MB.", "error")
+    max_mb = MAX_UPLOAD_SIZE // (1024 * 1024)
+    flash(f"Image too large. Please keep uploads under {max_mb}MB.", "error")
     return redirect(url_for("report"))
 
 

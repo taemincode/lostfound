@@ -2,7 +2,7 @@
 {% block content %}
   <article class="item-card">
     {% if item['image_filename'] %}
-      <img class="detail-image" src="{{ url_for('static', filename='uploads/' ~ item['image_filename']) }}" alt="{{ item['name'] }}">
+      <img class="detail-image" src="{{ url_for('static', filename='uploads/' ~ item['image_filename']) }}" alt="{{ item['name'] }}" loading="lazy">
     {% endif %}
     <header>
       <h2>{{ item['name'] }}</h2>

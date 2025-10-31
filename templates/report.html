@@ -5,13 +5,13 @@
   <form class="form" method="post" action="{{ url_for('report') }}" enctype="multipart/form-data">
     <div class="field">
       <label for="name">Item Name</label>
-      <input type="text" id="name" name="name" placeholder="e.g., Blue Backpack" required>
+      <input type="text" id="name" name="name" placeholder="e.g., Blue Backpack" required autocomplete="off" inputmode="text">
     </div>
 
     <div class="field">
       <label for="image">Photo</label>
       <input type="file" id="image" name="image" accept="image/*" required>
-      <small class="muted">PNG, JPG, GIF, or WEBP. Max 5MB.</small>
+      <small class="muted">PNG, JPG, GIF, WEBP, or HEIC. Larger photos are compressed automatically.</small>
     </div>
 
     <div class="field">
@@ -20,14 +20,14 @@
       </div>
     </div>
 
-        <div class="field">
+    <div class="field">
       <label for="description">Description (optional)</label>
-      <textarea id="description" name="description" rows="4" placeholder="Details like color, markings, and any identifiers."></textarea>
+      <textarea id="description" name="description" rows="4" placeholder="Details like color, markings, and any identifiers." inputmode="text" autocapitalize="sentences"></textarea>
     </div>
 
     <div class="field">
       <label for="location">Location Found</label>
-      <input type="text" id="location" name="location" placeholder="e.g., Library front desk" required>
+      <input type="text" id="location" name="location" placeholder="e.g., Library front desk" required autocomplete="on" inputmode="text">
     </div>
 
     <div class="field">

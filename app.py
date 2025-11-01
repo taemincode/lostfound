@@ -5,9 +5,12 @@ import sqlite3
 import datetime as dt
 from io import BytesIO
 from uuid import uuid4
+from functools import wraps
+from urllib.parse import urljoin, urlparse
+import logging
 from PIL import Image, UnidentifiedImageError
 from pillow_heif import register_heif_opener
-from flask import Flask, render_template, request, redirect, url_for, flash, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, abort, session
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -16,8 +19,16 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
 ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "GIF", "WEBP", "HEIC", "HEIF"}
 
 register_heif_opener()
-MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE", 10 * 1024 * 1024))
-MAX_SAVED_IMAGE_SIZE = int(os.environ.get("MAX_SAVED_IMAGE_SIZE", 5 * 1024 * 1024))
+MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE", 6 * 1024 * 1024))
+MAX_SAVED_IMAGE_SIZE = int(os.environ.get("MAX_SAVED_IMAGE_SIZE", 3 * 1024 * 1024))
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "dev-admin")
+ADMIN_SESSION_KEY = "is_admin"
+
+logger = logging.getLogger(__name__)
+
+
+class ImageProcessingError(Exception):
+    """Raised when an uploaded image cannot be processed."""
 
 
 def shrink_image_to_target(file_bytes: bytes, format_hint: str) -> tuple[bytes | None, str | None]:
@@ -50,10 +61,78 @@ def shrink_image_to_target(file_bytes: bytes, format_hint: str) -> tuple[bytes |
     return None, None
 
 
+def process_and_store_image(file_bytes: bytes) -> str:
+    """Validate, shrink, and persist the uploaded image. Returns the stored filename."""
+    if not file_bytes:
+        raise ImageProcessingError("Empty image payload.")
+
+    try:
+        with Image.open(BytesIO(file_bytes)) as image:
+            image_format = (image.format or "").upper()
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ImageProcessingError("Unsupported image type.") from exc
+
+    if image_format in {"HEIC", "HEIF"}:
+        try:
+            with Image.open(BytesIO(file_bytes)) as image:
+                converted = image.convert("RGB")
+                buffer = BytesIO()
+                converted.save(buffer, format="JPEG", quality=90)
+                file_bytes = buffer.getvalue()
+                image_format = "JPEG"
+        except Exception as exc:
+            raise ImageProcessingError("Unable to process HEIC image.") from exc
+
+    if image_format not in ALLOWED_IMAGE_FORMATS:
+        raise ImageProcessingError("Unsupported image type.")
+
+    processed_bytes, processed_format = shrink_image_to_target(file_bytes, image_format)
+    if not processed_bytes or not processed_format:
+        raise ImageProcessingError("Image is too large even after compression.")
+
+    ext_map = {"JPEG": ".jpg", "PNG": ".png", "GIF": ".gif", "WEBP": ".webp", "HEIC": ".heic", "HEIF": ".heif"}
+    unique_name = uuid4().hex + ext_map.get(processed_format, "")
+    save_path = os.path.join(UPLOAD_FOLDER, unique_name)
+    try:
+        with open(save_path, "wb") as fout:
+            fout.write(processed_bytes)
+    except Exception as exc:
+        raise ImageProcessingError("Failed to save processed image.") from exc
+
+    return unique_name
+
+
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def require_admin(view_func):
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        if not session.get(ADMIN_SESSION_KEY):
+            flash("Please log in as an administrator to continue.", "error")
+            return redirect(url_for("admin_login", next=request.url))
+        return view_func(*args, **kwargs)
+
+    return wrapped
+
+
+def _is_safe_redirect(target: str) -> bool:
+    if not target:
+        return False
+    host_url = urlparse(request.host_url)
+    redirect_url = urlparse(urljoin(request.host_url, target))
+    return redirect_url.scheme in ("http", "https") and host_url.netloc == redirect_url.netloc
+
+
+def get_admin_redirect_target(default: str = "admin_dashboard") -> str:
+    target = request.form.get("next") or request.args.get("next")
+    if target and _is_safe_redirect(target):
+        return target
+    return url_for(default)
 
 
 def init_db():
@@ -134,73 +213,61 @@ def report():
             flash("Image file is required.", "error")
             return redirect(url_for("report"))
 
+        if image_file.mimetype and not image_file.mimetype.lower().startswith("image/"):
+            flash("Unsupported file type. Please upload a photo.", "error")
+            return redirect(url_for("report"))
+
         if not date_found:
             date_found = dt.date.today().isoformat()
 
-        image_filename = None
-        if image_file and image_file.filename:
-            # Validate and save image
+        try:
             file_bytes = image_file.read()
-            if not file_bytes:
-                flash("Image upload failed. Please choose the photo again.", "error")
-                return redirect(url_for("report"))
+        except Exception:
+            flash("Image upload failed. Please choose the photo again.", "error")
+            return redirect(url_for("report"))
 
-            try:
-                with Image.open(BytesIO(file_bytes)) as image:
-                    image_format = (image.format or "").upper()
-                    image.verify()
-            except (UnidentifiedImageError, OSError, ValueError):
-                flash("Unsupported image type. Please upload PNG, JPG, GIF, WEBP, or HEIC.", "error")
-                return redirect(url_for("report"))
+        if not file_bytes:
+            flash("Image upload failed. Please choose the photo again.", "error")
+            return redirect(url_for("report"))
 
-            if image_format in {"HEIC", "HEIF"}:
-                try:
-                    with Image.open(BytesIO(file_bytes)) as image:
-                        converted = image.convert("RGB")
-                        buffer = BytesIO()
-                        converted.save(buffer, format="JPEG", quality=90)
-                        file_bytes = buffer.getvalue()
-                        image_format = "JPEG"
-                except Exception:
-                    flash("Unable to process HEIC image. Please choose a JPG or PNG.", "error")
-                    return redirect(url_for("report"))
+        try:
+            image_filename = process_and_store_image(file_bytes)
+        except ImageProcessingError as exc:
+            flash(str(exc) or "We couldn't process that photo. Please upload PNG, JPG, GIF, WEBP, or HEIC.", "error")
+            return redirect(url_for("report"))
+        except Exception:
+            logger.exception("Failed to process image for %s", name)
+            flash("We couldn't process the photo. Please try again.", "error")
+            return redirect(url_for("report"))
 
-            if image_format not in ALLOWED_IMAGE_FORMATS:
-                flash("Unsupported image type. Please upload PNG, JPG, GIF, WEBP, or HEIC.", "error")
-                return redirect(url_for("report"))
-
-            file_bytes, image_format = shrink_image_to_target(file_bytes, image_format)
-            if not file_bytes or not image_format:
-                flash("Image is too large even after compression. Please upload a smaller image.", "error")
-                return redirect(url_for("report"))
-
-            ext_map = {"JPEG": ".jpg", "PNG": ".png", "GIF": ".gif", "WEBP": ".webp", "HEIC": ".heic", "HEIF": ".heif"}
-            unique_name = uuid4().hex + ext_map.get(image_format, "")
-            save_path = os.path.join(app.config["UPLOAD_FOLDER"], unique_name)
-            try:
-                with open(save_path, "wb") as fout:
-                    fout.write(file_bytes)
-                image_filename = unique_name
-            except Exception:
-                flash("Failed to save image.", "error")
-                return redirect(url_for("report"))
+        image_path = os.path.join(app.config["UPLOAD_FOLDER"], image_filename)
 
         conn = get_db_connection()
-        # If legacy column 'date' exists and is NOT NULL, include it in insert
-        cur = conn.execute("PRAGMA table_info(items)")
-        cols = {row[1] for row in cur.fetchall()}
-        if "date" in cols:
-            conn.execute(
-                "INSERT INTO items (name, description, date_found, location, status, image_filename, date) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (name, description, date_found, location, "available", image_filename, date_found),
-            )
-        else:
-            conn.execute(
-                "INSERT INTO items (name, description, date_found, location, status, image_filename) VALUES (?, ?, ?, ?, ?, ?)",
-                (name, description, date_found, location, "available", image_filename),
-            )
-        conn.commit()
-        conn.close()
+        try:
+            cur = conn.execute("PRAGMA table_info(items)")
+            cols = {row[1] for row in cur.fetchall()}
+            if "date" in cols:
+                conn.execute(
+                    "INSERT INTO items (name, description, date_found, location, status, image_filename, date) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (name, description, date_found, location, "available", image_filename, date_found),
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO items (name, description, date_found, location, status, image_filename) VALUES (?, ?, ?, ?, ?, ?)",
+                    (name, description, date_found, location, "available", image_filename),
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            try:
+                os.remove(image_path)
+            except OSError as exc:
+                logger.warning("Failed to remove image %s for failed insert: %s", image_path, exc)
+            logger.exception("Failed to save report for %s", name)
+            flash("We couldn't save your report. Please try again.", "error")
+            return redirect(url_for("report"))
+        finally:
+            conn.close()
 
         flash("Item reported.", "success")
         return redirect(url_for("index"))
@@ -221,6 +288,94 @@ def item_detail(item_id: int):
     if not item:
         abort(404)
     return render_template("item_detail.html", item=item)
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        token = (request.form.get("token") or "").strip()
+        if token == ADMIN_TOKEN:
+            session[ADMIN_SESSION_KEY] = True
+            flash("Admin access granted.", "success")
+            return redirect(get_admin_redirect_target())
+        flash("Invalid admin token.", "error")
+    return render_template("admin_login.html")
+
+
+@app.route("/admin/logout", methods=["POST"])
+@require_admin
+def admin_logout():
+    session.pop(ADMIN_SESSION_KEY, None)
+    flash("Logged out of the admin area.", "success")
+    return redirect(url_for("admin_login"))
+
+
+@app.route("/admin")
+@require_admin
+def admin_dashboard():
+    conn = get_db_connection()
+    items = conn.execute(
+        """
+        SELECT id, name, description, date_found, location, status, image_filename
+        FROM items
+        ORDER BY date_found DESC, id DESC
+        """
+    ).fetchall()
+    conn.close()
+    return render_template("admin.html", items=items, upload_folder=UPLOAD_FOLDER)
+
+
+@app.route("/admin/items/<int:item_id>/delete", methods=["POST"])
+@require_admin
+def admin_delete_item(item_id: int):
+    conn = get_db_connection()
+    try:
+        item = conn.execute(
+            "SELECT image_filename, name FROM items WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+        if not item:
+            flash("Item not found.", "error")
+            return redirect(url_for("admin_dashboard"))
+
+        if item["image_filename"]:
+            image_path = os.path.join(app.config["UPLOAD_FOLDER"], item["image_filename"])
+            try:
+                os.remove(image_path)
+            except FileNotFoundError:
+                logger.info("Image %s already missing when deleting item %s", image_path, item_id)
+            except OSError as exc:
+                logger.warning("Failed to remove image %s for item %s: %s", image_path, item_id, exc)
+
+        conn.execute("DELETE FROM items WHERE id = ?", (item_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    logger.info("Admin deleted item %s (%s)", item_id, item["name"])
+    flash("Item deleted.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/items/<int:item_id>/mark-available", methods=["POST"])
+@require_admin
+def admin_mark_available(item_id: int):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE items SET status = 'available' WHERE id = ?",
+        (item_id,),
+    )
+    conn.commit()
+    changed = cur.rowcount
+    conn.close()
+
+    if changed:
+        logger.info("Admin set item %s to available", item_id)
+        flash("Item marked as available.", "success")
+    else:
+        flash("Item not found or already available.", "error")
+    return redirect(url_for("admin_dashboard"))
 
 
 @app.route("/claim/<int:item_id>", methods=["POST"])
@@ -246,7 +401,7 @@ def page_not_found(e):
 @app.errorhandler(413)
 def too_large(e):
     max_mb = MAX_UPLOAD_SIZE // (1024 * 1024)
-    flash(f"Image too large. Please keep uploads under {max_mb}MB.", "error")
+    flash(f"Image too large. Please keep uploads under {max_mb}MB. We automatically shrink photos to about 3MB.", "error")
     return redirect(url_for("report"))
 
 

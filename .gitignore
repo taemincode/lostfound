@@ -1,9 +1,11 @@
 # Virtual environment
 .venv/
 
+# macOS Finder metadata
+.DS_Store
+
 # SQLite database
 lostfound.db
 
 # Uploaded images
 static/uploads/
-

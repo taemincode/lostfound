@@ -56,18 +56,18 @@
           <nav id="primaryNavigation" class="hidden flex-1 items-center justify-end gap-6 text-sm font-medium md:flex">
             <a href="{{ url_for('index') }}" class="nav-link">Home</a>
             <div class="hidden items-center gap-2 md:flex">
-              <a href="{{ url_for('report') }}" class="status-pill status-pill--active nav-pill" aria-label="Submit a new report">Submit Report</a>
+              <a href="{{ url_for('report') }}" class="status-pill status-pill--active nav-pill" aria-label="Submit a new report">Report</a>
             </div>
           </nav>
         </div>
-        <div id="mobileNavPanel" class="mx-4 mb-3 hidden flex-col gap-2 rounded-2xl border border-slate-200/70 bg-white/95 p-3 text-sm font-medium shadow-lg shadow-primary-500/5 transition" data-open="false">
+        <div id="mobileNavPanel" class="mx-4 mb-3 hidden flex-col gap-2 rounded-2xl border border-slate-200/70 bg-white/95 p-3 text-sm font-medium shadow-lg shadow-primary-500/5 transition" data-open="false" hidden aria-hidden="true">
           <a href="{{ url_for('index') }}" class="nav-link">Home</a>
-          <a href="{{ url_for('report') }}" class="status-pill status-pill--active nav-pill" aria-label="Submit a new report">Submit Report</a>
+          <a href="{{ url_for('report') }}" class="status-pill status-pill--active nav-pill" aria-label="Submit a new report">Report</a>
         </div>
       </header>
 
       <main class="flex-1">
-        <div class="mx-auto w-full max-w-6xl px-4 py-8 md:px-6 md:py-8">
+        <div class="mx-auto w-full max-w-6xl px-4 py-4 md:px-6 md:py-8">
           {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
               <div class="mb-6 flex flex-col gap-3" id="flashMessages" aria-live="assertive" aria-atomic="true">
@@ -123,18 +123,30 @@
         const navLinks = navPanel ? navPanel.querySelectorAll('a[href]') : [];
         const toastContainer = document.getElementById('flashMessages');
 
-        const toggleNav = () => {
+        const setNavState = (nextOpen) => {
           if (!navPanel || !navToggle) return;
-          const isOpen = navPanel.dataset.open === 'true';
-          navPanel.dataset.open = String(!isOpen);
-          navToggle.setAttribute('aria-expanded', String(!isOpen));
-          navPanel.classList.toggle('hidden', isOpen);
+          const isOpen = Boolean(nextOpen);
+          navPanel.dataset.open = String(isOpen);
+          navPanel.classList.toggle('hidden', !isOpen);
+          navPanel.toggleAttribute('hidden', !isOpen);
+          navPanel.setAttribute('aria-hidden', String(!isOpen));
+          navToggle.setAttribute('aria-expanded', String(isOpen));
         };
+
+        const toggleNav = () => {
+          if (!navPanel) return;
+          const nextOpen = navPanel.dataset.open !== 'true';
+          setNavState(nextOpen);
+        };
+
+        if (navPanel) {
+          setNavState(navPanel.dataset.open === 'true');
+        }
 
         navToggle?.addEventListener('click', toggleNav);
         navLinks.forEach((link) => link.addEventListener('click', () => {
-          if (navPanel.dataset.open === 'true') {
-            toggleNav();
+          if (navPanel?.dataset.open === 'true') {
+            setNavState(false);
           }
         }));
 

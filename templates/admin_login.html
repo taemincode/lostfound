@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="mx-auto max-w-md space-y-6 rounded-3xl border border-slate-200/70 bg-white/80 p-8 shadow-lg shadow-primary-500/10">
+    <div class="space-y-2 text-center">
+      <h1 class="text-2xl font-semibold text-slate-900">Admin Access</h1>
+      <p class="text-sm text-slate-500">Enter the admin token to manage lost and found items.</p>
+    </div>
+    <form method="post" class="space-y-4">
+      <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+      <div class="space-y-2">
+        <label for="adminToken" class="block text-sm font-medium text-slate-700">Admin token</label>
+        <input id="adminToken" name="token" type="password" required class="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-primary-300 focus:ring-4 focus:ring-primary-200/60" autocomplete="off" placeholder="Enter token" />
+      </div>
+      <button type="submit" class="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-primary-500/40 transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-200">
+        Sign in
+      </button>
+    </form>
+  </section>
+{% endblock %}

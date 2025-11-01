@@ -1,9 +1,8 @@
 {% extends "layout.html" %}
 {% block content %}
-  <section class="mx-auto max-w-3xl space-y-10">
+  <section class="mx-auto max-w-3xl space-y-6">
     <header class="space-y-3 text-center">
       <h1 class="text-3xl font-bold tracking-tight text-slate-900">Share details about the item you found</h1>
-      <p class="text-sm text-slate-500">Clear photos and accurate descriptions help owners recognize their belongings faster.</p>
     </header>
 
     <form class="space-y-8" method="post" action="{{ url_for('report') }}" enctype="multipart/form-data" id="reportForm">
@@ -23,10 +22,11 @@
               <span class="text-xs text-primary-500">Required</span>
             </div>
             <input type="file" id="image" name="image" accept="image/*" required class="form-file-input" />
-            <p class="text-xs font-medium text-slate-400">PNG, JPG, GIF, WEBP, or HEIC.</p>
+            <p class="text-xs font-medium text-slate-400">PNG, JPG, GIF, WEBP, or HEIC. Large photos are resized to stay under 3&nbsp;MB automatically.</p>
             <div id="imagePreviewContainer" class="image-preview" hidden>
               <img id="image-preview" class="image-preview__img" alt="Selected image preview">
             </div>
+            <p id="imageSizeNote" class="text-xs text-slate-400" hidden></p>
           </div>
 
           <div class="space-y-2">
@@ -57,7 +57,7 @@
                 <path d="m19 12-7 7-7-7" />
               </svg>
             </span>
-            <span class="submit-pill__label">Submit report</span>
+            <span class="submit-pill__label">Submit</span>
             <span class="submit-pill__glow" aria-hidden="true"></span>
           </button>
           <a class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200/70 bg-white px-6 py-3 text-base font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-200" href="{{ url_for('index') }}">

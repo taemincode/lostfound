@@ -1,0 +1,110 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-900">Admin Dashboard</h1>
+        <p class="text-sm text-slate-500">Review, delete, or reopen items submitted by the community.</p>
+      </div>
+      <form method="post" action="{{ url_for('admin_logout') }}">
+        <button type="submit" class="inline-flex items-center justify-center rounded-2xl border border-slate-200/80 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-primary-200 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-200">
+          Log out
+        </button>
+      </form>
+    </div>
+
+    {% if items %}
+      <div class="overflow-x-auto rounded-3xl border border-slate-200/70 bg-white/80 shadow-sm shadow-primary-500/10">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+          <thead class="bg-slate-50/70 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <tr>
+              <th scope="col" class="px-4 py-3">Item</th>
+              <th scope="col" class="px-4 py-3">Status</th>
+              <th scope="col" class="px-4 py-3 w-32">Date found</th>
+              <th scope="col" class="px-4 py-3">Location</th>
+              <th scope="col" class="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200/70">
+            {% for item in items %}
+              {% set status = (item['status'] or 'available')|lower %}
+              <tr class="bg-white/60 hover:bg-primary-50/40">
+                <td class="px-4 py-4">
+                  <div class="flex items-start gap-3">
+                    <div class="h-12 w-12 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                      {% if item['image_filename'] %}
+                        <img src="{{ url_for('static', filename='uploads/' ~ item['image_filename']) }}" alt="{{ item['name'] }}" class="h-full w-full object-cover" loading="lazy" />
+                      {% else %}
+                        <div class="flex h-full w-full items-center justify-center text-xs text-slate-400">No image</div>
+                      {% endif %}
+                    </div>
+                    <p class="font-semibold text-slate-800 leading-tight">{{ item['name'] }}</p>
+                  </div>
+                </td>
+                <td class="px-4 py-4">
+                  <span class="inline-flex items-center gap-2 rounded-xl px-3 py-1 text-xs font-semibold
+                    {% if status == 'available' %}
+                      bg-emerald-100 text-emerald-700
+                    {% elif status == 'claimed' %}
+                      bg-amber-100 text-amber-700
+                    {% elif status == 'processing' %}
+                      bg-sky-100 text-sky-700
+                    {% elif status == 'error' %}
+                      bg-rose-100 text-rose-700
+                    {% else %}
+                      bg-slate-100 text-slate-600
+                    {% endif %}
+                  ">
+                    <span class="inline-block h-2 w-2 rounded-full
+                      {% if status == 'available' %}
+                        bg-emerald-500
+                      {% elif status == 'claimed' %}
+                        bg-amber-500
+                      {% elif status == 'processing' %}
+                        bg-sky-500
+                      {% elif status == 'error' %}
+                        bg-rose-500
+                      {% else %}
+                        bg-slate-400
+                      {% endif %}
+                    "></span>
+                    {{ status|capitalize }}
+                  </span>
+                </td>
+                <td class="px-4 py-4">
+                  <time datetime="{{ item['date_found'] or '' }}" class="font-medium text-slate-700">
+                    {{ item['date_found'] or '—' }}
+                  </time>
+                </td>
+                <td class="px-4 py-4 text-slate-600">
+                  {{ item['location'] or '—' }}
+                </td>
+                <td class="px-4 py-4">
+                  <div class="flex items-center justify-end gap-2">
+                    {% if status == 'claimed' %}
+                      <form method="post" action="{{ url_for('admin_mark_available', item_id=item['id']) }}">
+                        <button type="submit" class="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-600 transition hover:border-emerald-300 hover:bg-emerald-100">
+                          Mark available
+                        </button>
+                      </form>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('admin_delete_item', item_id=item['id']) }}" onsubmit="return confirm('Delete this item and its image?');">
+                      <button type="submit" class="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-100">
+                        Delete
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="rounded-3xl border border-dashed border-slate-200/80 bg-white/80 p-10 text-center shadow-sm">
+        <h2 class="text-xl font-semibold text-slate-900">No items recorded</h2>
+        <p class="mt-2 text-sm text-slate-500">New reports will appear here for easy admin management.</p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

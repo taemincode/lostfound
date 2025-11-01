@@ -1,62 +1,159 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Lost &amp; Found</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  </head>
-  <body>
-    <header class="site-header">
-      <div class="container">
-        <h1><a href="{{ url_for('index') }}">FEM Lost &amp; Found</a></h1>
-        <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
-        <nav class="site-nav" data-open="false">
-          <a href="{{ url_for('index') }}">Home</a>
-          <a class="btn primary" href="{{ url_for('report') }}">Report Item</a>
-        </nav>
-      </div>
-    </header>
-
-    <main class="container">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <ul class="flashes">
-            {% for category, message in messages %}
-              <li class="flash {{ category }}">{{ message }}</li>
-            {% endfor %}
-          </ul>
-        {% endif %}
-      {% endwith %}
-
-      {% block content %}{% endblock %}
-    </main>
-
-    <footer class="site-footer">
-      <div class="container">SA Project by <a href="https://taemincode.github.io" style="text-decoration: none; color: inherit;">Taemin Park</a></div>
-    </footer>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script>
-      (function() {
-        const toggle = document.querySelector('.nav-toggle');
-        const nav = document.querySelector('.site-nav');
-        const links = nav ? nav.querySelectorAll('a') : [];
-        if (!toggle || !nav) return;
-        toggle.addEventListener('click', () => {
-          const isOpen = nav.getAttribute('data-open') === 'true';
-          nav.setAttribute('data-open', String(!isOpen));
-          toggle.setAttribute('aria-expanded', String(!isOpen));
-        });
-        links.forEach((link) => {
-          link.addEventListener('click', () => {
-            nav.setAttribute('data-open', 'false');
-            toggle.setAttribute('aria-expanded', 'false');
+      window.tailwind = { config: {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
+            colors: {
+              primary: {
+                50: '#eff6ff',
+                100: '#dbeafe',
+                200: '#bfdbfe',
+                300: '#93c5fd',
+                400: '#60a5fa',
+                500: '#3b82f6',
+                600: '#2563eb',
+                700: '#1d4ed8',
+              },
+            },
+            boxShadow: {
+              soft: '0 20px 45px -20px rgba(30, 64, 175, 0.35)',
+            },
+          },
+        },
+      }};
+    </script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
+    <div class="relative flex min-h-screen flex-col">
+      <header class="sticky top-0 z-40 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur">
+        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6 md:py-4">
+          <a href="{{ url_for('index') }}" class="flex items-center gap-3">
+            <span class="flex flex-col">
+              <span class="text-lg font-semibold md:text-xl">FEM Lost &amp; Found</span>
+              <span class="text-sm font-medium text-slate-500">Find your lost items more quickly!</span>
+            </span>
+          </a>
+          <div class="flex items-center gap-2 md:hidden">
+            <button type="button" class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200/60 bg-white text-slate-600 shadow-sm transition hover:border-primary-200 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400" id="navToggle" aria-expanded="false" aria-controls="primaryNavigation" aria-label="Toggle navigation">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            </button>
+          </div>
+          <nav id="primaryNavigation" class="hidden flex-1 items-center justify-end gap-6 text-sm font-medium md:flex">
+            <a href="{{ url_for('index') }}" class="nav-link">Home</a>
+            <div class="hidden items-center gap-2 md:flex">
+              <a href="{{ url_for('report') }}" class="status-pill status-pill--active nav-pill" aria-label="Submit a new report">Submit Report</a>
+            </div>
+          </nav>
+        </div>
+        <div id="mobileNavPanel" class="mx-4 mb-3 hidden flex-col gap-2 rounded-2xl border border-slate-200/70 bg-white/95 p-3 text-sm font-medium shadow-lg shadow-primary-500/5 transition" data-open="false">
+          <a href="{{ url_for('index') }}" class="nav-link">Home</a>
+          <a href="{{ url_for('report') }}" class="status-pill status-pill--active nav-pill" aria-label="Submit a new report">Submit Report</a>
+        </div>
+      </header>
+
+      <main class="flex-1">
+        <div class="mx-auto w-full max-w-6xl px-4 py-8 md:px-6 md:py-8">
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              <div class="mb-6 flex flex-col gap-3" id="flashMessages" aria-live="assertive" aria-atomic="true">
+                {% for category, message in messages %}
+                  <div class="flash-card relative flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm shadow-lg shadow-primary-500/10 transition data-[state=hidden]:pointer-events-none data-[state=hidden]:opacity-0 data-[state=visible]:opacity-100 {{ 'flash-success' if category == 'success' else '' }} {{ 'flash-error' if category == 'error' else '' }}" data-toast="true" data-category="{{ category }}">
+                    <span class="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-primary-100 text-primary-600">
+                      {% if category == 'success' %}
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.25 7.333a1 1 0 0 1-1.432.012l-3.5-3.5a1 1 0 1 1 1.414-1.414l2.785 2.785 6.537-6.603a1 1 0 0 1 1.44-.027Z" clip-rule="evenodd" /></svg>
+                      {% elif category == 'error' %}
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.707 4.293a1 1 0 0 1 0 1.414l-11 11a1 1 0 0 1-1.414-1.414l11-11a1 1 0 0 1 1.414 0Zm-11 0a1 1 0 0 1 1.414 0l11 11a1 1 0 0 1-1.414 1.414l-11-11a1 1 0 0 1 0-1.414Z" clip-rule="evenodd" /></svg>
+                      {% else %}
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm-.75-11.25a.75.75 0 1 1 1.5 0v4.5a.75.75 0 0 1-1.5 0v-4.5Zm.75 7.5a.88.88 0 1 1 0 1.75.88.88 0 0 1 0-1.75Z" clip-rule="evenodd" /></svg>
+                      {% endif %}
+                    </span>
+                    <div class="flex-1 text-sm">
+                      <p class="font-semibold capitalize text-slate-800">{{ category }}</p>
+                      <p class="text-slate-600">{{ message }}</p>
+                    </div>
+                    <button type="button" class="dismiss-toast ml-2 inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300" aria-label="Dismiss message">
+                      <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 5.22a.75.75 0 0 1 1.06 0L10 8.94l3.72-3.72a.75.75 0 1 1 1.06 1.06L11.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06L10 11.06l-3.72 3.72a.75.75 0 1 1-1.06-1.06L8.94 10 5.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" /></svg>
+                    </button>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
+
+          {% block content %}{% endblock %}
+        </div>
+      </main>
+
+      <footer class="border-t border-slate-200/60 bg-white/80 py-8 text-sm text-slate-500 backdrop-blur">
+        <div class="mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 text-center md:flex-row md:justify-between md:text-left">
+          <div class="flex items-center gap-3">
+            <div>
+              <p class="font-medium text-slate-700">SA Project by <a href="https://taemincode.github.io" class="text-primary-600 hover:text-primary-500" target="_blank" rel="noopener">Taemin Park (MYP 4)</a></p>
+              <p class="text-xs text-slate-500">Made for FEM students</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center justify-center gap-2 md:justify-end">
+            <a href="https://www.wis.fem.org.pl/" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-sm transition hover:border-primary-200 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300">Visit WIS</a>
+            <a href="https://fem.org.pl/" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-sm transition hover:border-primary-200 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300">Visit FEM</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+    <script>
+      (function () {
+        const navToggle = document.getElementById('navToggle');
+        const navPanel = document.getElementById('mobileNavPanel');
+        const navLinks = navPanel ? navPanel.querySelectorAll('a[href]') : [];
+        const toastContainer = document.getElementById('flashMessages');
+
+        const toggleNav = () => {
+          if (!navPanel || !navToggle) return;
+          const isOpen = navPanel.dataset.open === 'true';
+          navPanel.dataset.open = String(!isOpen);
+          navToggle.setAttribute('aria-expanded', String(!isOpen));
+          navPanel.classList.toggle('hidden', isOpen);
+        };
+
+        navToggle?.addEventListener('click', toggleNav);
+        navLinks.forEach((link) => link.addEventListener('click', () => {
+          if (navPanel.dataset.open === 'true') {
+            toggleNav();
+          }
+        }));
+
+        if (toastContainer) {
+          const toasts = toastContainer.querySelectorAll('[data-toast]');
+          toasts.forEach((toast, index) => {
+            setTimeout(() => {
+              toast.dataset.state = 'visible';
+            }, 120 * (index + 1));
+            const closeBtn = toast.querySelector('.dismiss-toast');
+            const dismiss = () => {
+              toast.dataset.state = 'hidden';
+              setTimeout(() => toast.remove(), 300);
+            };
+            closeBtn?.addEventListener('click', dismiss);
+            setTimeout(dismiss, 6000 + index * 1000);
           });
-        });
+        }
       })();
     </script>
   </body>
-  </html>
+</html>

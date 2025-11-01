@@ -109,10 +109,9 @@ def index():
         """
         SELECT id, name, description, date_found, location, status, image_filename
         FROM items
-        WHERE status = ? OR status IS NULL OR status = ''
+        WHERE status IN ('available', 'claimed') OR status IS NULL OR status = ''
         ORDER BY date_found DESC, id DESC
-        """,
-        ("available",),
+        """
     ).fetchall()
     conn.close()
     return render_template("index.html", items=items)
@@ -237,6 +236,11 @@ def claim_item(item_id: int):
     else:
         flash("Item not found.", "error")
     return redirect(url_for("item_detail", item_id=item_id))
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template("404.html"), 404
 
 
 @app.errorhandler(413)

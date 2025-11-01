@@ -1,70 +1,70 @@
 {% extends "layout.html" %}
 {% block content %}
-  <h2>Report a Lost Item</h2>
+  <section class="mx-auto max-w-3xl space-y-10">
+    <header class="space-y-3 text-center">
+      <h1 class="text-3xl font-bold tracking-tight text-slate-900">Share details about the item you found</h1>
+      <p class="text-sm text-slate-500">Clear photos and accurate descriptions help owners recognize their belongings faster.</p>
+    </header>
 
-  <form class="form" method="post" action="{{ url_for('report') }}" enctype="multipart/form-data">
-    <div class="field">
-      <label for="name">Item Name</label>
-      <input type="text" id="name" name="name" placeholder="e.g., Blue Backpack" required autocomplete="off" inputmode="text">
-    </div>
+    <form class="space-y-8" method="post" action="{{ url_for('report') }}" enctype="multipart/form-data" id="reportForm">
+      <div class="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-lg shadow-primary-500/10 backdrop-blur">
+        <div class="space-y-6">
+          <div class="space-y-2">
+            <label for="name" class="flex items-center justify-between text-sm font-semibold uppercase tracking-wide text-slate-500">
+              <span>Item name</span>
+              <span class="text-xs text-primary-500">Required</span>
+            </label>
+            <input type="text" id="name" name="name" placeholder="e.g., Blue water bottle" required autocomplete="off" inputmode="text" class="form-input" />
+          </div>
 
-    <div class="field">
-      <label for="image">Photo</label>
-      <input type="file" id="image" name="image" accept="image/*" required>
-      <small class="muted">PNG, JPG, GIF, WEBP, or HEIC. Larger photos are compressed automatically.</small>
-    </div>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between text-sm font-semibold uppercase tracking-wide text-slate-500">
+              <label for="image" class="text-sm font-semibold uppercase tracking-wide">Upload photo</label>
+              <span class="text-xs text-primary-500">Required</span>
+            </div>
+            <input type="file" id="image" name="image" accept="image/*" required class="form-file-input" />
+            <p class="text-xs font-medium text-slate-400">PNG, JPG, GIF, WEBP, or HEIC.</p>
+            <div id="imagePreviewContainer" class="image-preview" hidden>
+              <img id="image-preview" class="image-preview__img" alt="Selected image preview">
+            </div>
+          </div>
 
-    <div class="field">
-      <div id="preview" class="preview hidden">
-          <img id="image-preview" class="preview-image" alt="Selected image preview">
+          <div class="space-y-2">
+            <label for="description" class="text-sm font-semibold uppercase tracking-wide text-slate-500">Description <span class="font-normal lowercase text-slate-400">(optional)</span></label>
+            <textarea id="description" name="description" rows="4" placeholder="Write about other useful information." inputmode="text" autocapitalize="sentences" class="form-textarea"></textarea>
+          </div>
+
+          <div class="grid gap-6 sm:grid-cols-2">
+            <div class="space-y-2">
+              <label for="location" class="text-sm font-semibold uppercase tracking-wide text-slate-500">Location found</label>
+              <input type="text" id="location" name="location" placeholder="e.g., Room 235" autocomplete="on" inputmode="text" class="form-input" />
+            </div>
+            <div class="space-y-2">
+              <label for="date_found" class="text-sm font-semibold uppercase tracking-wide text-slate-500">Date found</label>
+              <input type="date" id="date_found" name="date_found" value="{{ today }}" class="form-input" />
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="field">
-      <label for="description">Description (optional)</label>
-      <textarea id="description" name="description" rows="4" placeholder="Details like color, markings, and any identifiers." inputmode="text" autocapitalize="sentences"></textarea>
-    </div>
-
-    <div class="field">
-      <label for="location">Location Found</label>
-      <input type="text" id="location" name="location" placeholder="e.g., Library front desk" required autocomplete="on" inputmode="text">
-    </div>
-
-    <div class="field">
-      <label for="date_found">Date Found</label>
-      <input type="date" id="date_found" name="date_found" value="{{ today }}">
-    </div>
-
-    <div class="actions">
-      <button class="btn primary" type="submit">Submit Report</button>
-      <a class="btn" href="{{ url_for('index') }}">Cancel</a>
-    </div>
-  </form>
-
-  <script>
-    (function () {
-      const input = document.getElementById('image');
-      const container = document.getElementById('preview');
-      const img = document.getElementById('image-preview');
-      if (!input || !container || !img) return;
-      let currentUrl = null;
-      input.addEventListener('change', () => {
-        const file = input.files && input.files[0];
-        if (!file) {
-          container.classList.add('hidden');
-          if (currentUrl) { URL.revokeObjectURL(currentUrl); currentUrl = null; }
-          img.removeAttribute('src');
-          return;
-        }
-        if (!file.type || !file.type.startsWith('image/')) {
-          container.classList.add('hidden');
-          return;
-        }
-        if (currentUrl) { URL.revokeObjectURL(currentUrl); }
-        currentUrl = URL.createObjectURL(file);
-        img.src = currentUrl;
-        container.classList.remove('hidden');
-      });
-    })();
-  </script>
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-xs text-slate-500">By submitting, you confirm the item is currently being stored safely for its owner.</p>
+        <div class="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row">
+          <button class="submit-pill" type="submit">
+            <span class="submit-pill__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14" />
+                <path d="m19 12-7 7-7-7" />
+              </svg>
+            </span>
+            <span class="submit-pill__label">Submit report</span>
+            <span class="submit-pill__glow" aria-hidden="true"></span>
+          </button>
+          <a class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200/70 bg-white px-6 py-3 text-base font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-200" href="{{ url_for('index') }}">
+            Cancel
+          </a>
+        </div>
+      </div>
+    </form>
+  </section>
 {% endblock %}

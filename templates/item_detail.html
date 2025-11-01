@@ -1,30 +1,88 @@
 {% extends "layout.html" %}
 {% block content %}
-  <article class="item-card">
-    {% if item['image_filename'] %}
-      <img class="detail-image" src="{{ url_for('static', filename='uploads/' ~ item['image_filename']) }}" alt="{{ item['name'] }}" loading="lazy">
-    {% endif %}
-    <header>
-      <h2>{{ item['name'] }}</h2>
-      <small class="date">Date Found: {{ item['date_found'] or '—' }}</small>
-    </header>
-    <p><strong>Location:</strong> {{ item['location'] or 'Unknown' }}</p>
-    {% if item['description'] %}
-      <p>{{ item['description'] }}</p>
-    {% endif %}
+  {% set status = (item['status'] or 'available')|lower %}
+  <article class="mx-auto max-w-2xl rounded-3xl border border-slate-200/70 bg-white/80 shadow-lg shadow-primary-500/10 backdrop-blur transition">
+    <div class="flex flex-col gap-6 p-6 sm:p-10">
+      <div class="flex items-center justify-between gap-4 text-sm">
+        <a href="{{ url_for('index') }}" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white px-4 py-2 font-semibold text-slate-500 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300">
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 0 1 0 1.414L9.414 10l3.293 3.293a1 1 0 1 1-1.414 1.414l-4-4a1 1 0 0 1 0-1.414l4-4a1 1 0 0 1 1.414 0Z" clip-rule="evenodd" />
+          </svg>
+          Back to list
+        </a>
+        <span class="inline-flex items-center gap-2 rounded-full border border-transparent px-4 py-1.5 text-xs font-semibold uppercase tracking-wide shadow-sm {{ 'bg-emerald-100 text-emerald-600' if status == 'available' else 'bg-amber-100 text-amber-600' }}">
+          <span class="inline-flex h-2 w-2 rounded-full {{ 'bg-emerald-400' if status == 'available' else 'bg-amber-400' }}"></span>
+          {{ status }}
+        </span>
+      </div>
 
-    <p><strong>Status:</strong> {{ item['status'] or 'available' }}</p>
+      <div class="overflow-hidden rounded-3xl border border-slate-100/80 bg-slate-100 shadow-inner">
+        {% if item['image_filename'] %}
+          <img src="{{ url_for('static', filename='uploads/' ~ item['image_filename']) }}" alt="{{ item['name'] }}" loading="lazy" class="h-full w-full max-h-[26rem] object-cover" />
+        {% else %}
+          <div class="flex h-full min-h-[18rem] w-full flex-col items-center justify-center gap-3 text-slate-400">
+            <svg class="h-14 w-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 4v16h18" />
+              <path d="m3 14 6-6 4 4 5-5" />
+            </svg>
+            <span class="text-sm font-medium uppercase tracking-wide">No image available</span>
+          </div>
+        {% endif %}
+      </div>
 
-    {% if (item['status'] or 'available') == 'available' %}
-      <form method="post" action="{{ url_for('claim_item', item_id=item['id']) }}" style="margin-top: 12px;">
-        <button class="btn primary" type="submit">Mark as Claimed</button>
-      </form>
-    {% else %}
-      <p class="muted">This item has been claimed.</p>
-    {% endif %}
+      <header class="space-y-2">
+        <h1 class="text-3xl font-bold text-slate-900">{{ item['name'] }}</h1>
+        <p class="text-sm font-medium uppercase tracking-wide text-slate-400">Item ID #{{ item['id'] }}</p>
+      </header>
 
-    <p style="margin-top: 16px;">
-      <a class="btn" href="{{ url_for('index') }}">Back to list</a>
-    </p>
+      <div class="grid gap-4 rounded-3xl border border-slate-200/70 bg-white/70 p-6 shadow-sm">
+        <div class="flex flex-col gap-1 border-b border-dashed border-slate-200 pb-4">
+          <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">Location</span>
+          <p class="text-base font-medium text-slate-700">{{ item['location'] or 'Unknown' }}</p>
+        </div>
+        <div class="flex flex-col gap-1 border-b border-dashed border-slate-200 pb-4">
+          <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">Date Found</span>
+          <time class="text-base font-medium text-slate-700" datetime="{{ item['date_found'] or '' }}">{{ item['date_found'] or '—' }}</time>
+        </div>
+        <div class="flex flex-col gap-1 border-b border-dashed border-slate-200 pb-4">
+          <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</span>
+          <p class="text-base font-medium text-slate-700">{{ status.title() }}</p>
+        </div>
+        <div class="flex flex-col gap-1">
+          <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">Description</span>
+          {% if item['description'] %}
+            <p class="prose prose-sm max-w-none text-slate-600">{{ item['description'] }}</p>
+          {% else %}
+            <p class="text-sm italic text-slate-400">No additional details provided for this item.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {% if status == 'available' %}
+          <form method="post" action="{{ url_for('claim_item', item_id=item['id']) }}" class="claim-form">
+            <button type="submit" class="claim-pill">
+              <span class="claim-pill__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12l5 5L20 7" />
+                </svg>
+              </span>
+              <span class="claim-pill__label">Mark as claimed</span>
+              <span class="claim-pill__pulse" aria-hidden="true"></span>
+            </button>
+          </form>
+        {% else %}
+          <div class="flex-1 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-700 shadow-sm">
+            This item has already been claimed. Thank you for keeping our school organized!
+          </div>
+        {% endif %}
+        <a href="{{ url_for('report') }}" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200/70 bg-white px-5 py-4 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300">
+          Report another item
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M2 10a1 1 0 0 1 1-1h6V3a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H3a1 1 0 0 1-1-1Z" clip-rule="evenodd" />
+          </svg>
+        </a>
+      </div>
+    </div>
   </article>
 {% endblock %}

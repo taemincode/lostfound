@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="flex flex-col items-center justify-center gap-10 text-center py-12">
+    <div class="flex flex-col items-center gap-6 rounded-3xl border border-slate-200/90 bg-white px-8 py-10 shadow-xl shadow-primary-500/10 backdrop-blur-sm">
+      <span class="flex h-16 w-16 items-center justify-center rounded-2xl border border-primary-200/70 bg-gradient-to-br from-primary-50 via-white to-white text-primary-500 shadow-md shadow-primary-500/20">
+        <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 8v4" />
+          <path d="M12 16h.01" />
+          <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+      </span>
+      <div class="space-y-3">
+        <p class="text-sm font-semibold uppercase tracking-[0.3em] text-primary-400">404</p>
+        <h1 class="text-3xl font-bold text-slate-900 md:text-4xl">Hmm... we can’t find that page</h1>
+        <p class="max-w-xl text-sm text-slate-500 md:text-base">
+          The page you’re looking for might have been moved, removed, or is temporarily unavailable.
+        </p>
+      </div>
+      <div class="flex flex-col gap-3 sm:flex-row">
+        <a href="{{ url_for('index') }}" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200/70 bg-white px-6 py-3 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-200">
+          Back to homepage
+        </a>
+        <a href="{{ url_for('report') }}" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200/70 bg-white px-6 py-3 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-200">
+          Submit a report
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M2 10a1 1 0 0 1 1-1h6V3a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H3a1 1 0 0 1-1-1Z" clip-rule="evenodd" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+{% endblock %}

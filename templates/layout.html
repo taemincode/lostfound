@@ -60,10 +60,11 @@
             </div>
           </nav>
         </div>
-        <div id="mobileNavPanel" class="mx-4 mb-3 hidden flex-col gap-2 rounded-2xl border border-slate-200/70 bg-white/95 p-3 text-sm font-medium shadow-lg shadow-primary-500/5 transition" data-open="false" hidden aria-hidden="true">
+        <div id="mobileNavPanel" class="mx-4 mb-3 hidden flex-col gap-2 rounded-2xl border border-slate-200/70 bg-white/95 p-3 text-sm font-medium shadow-lg shadow-primary-500/5 transition md:hidden" data-open="false" hidden aria-hidden="true">
           <a href="{{ url_for('index') }}" class="nav-link">Home</a>
           <a href="{{ url_for('report') }}" class="status-pill status-pill--active nav-pill" aria-label="Submit a new report">Report</a>
         </div>
+        <div id="mobileNavBackdrop" class="fixed inset-0 z-30 hidden bg-slate-900/30 opacity-0 backdrop-blur-sm transition-opacity duration-200 md:hidden" hidden aria-hidden="true"></div>
       </header>
 
       <main class="flex-1">
@@ -120,6 +121,7 @@
       (function () {
         const navToggle = document.getElementById('navToggle');
         const navPanel = document.getElementById('mobileNavPanel');
+        const navBackdrop = document.getElementById('mobileNavBackdrop');
         const navLinks = navPanel ? navPanel.querySelectorAll('a[href]') : [];
         const toastContainer = document.getElementById('flashMessages');
 
@@ -127,10 +129,17 @@
           if (!navPanel || !navToggle) return;
           const isOpen = Boolean(nextOpen);
           navPanel.dataset.open = String(isOpen);
+          navToggle.setAttribute('aria-expanded', String(isOpen));
           navPanel.classList.toggle('hidden', !isOpen);
           navPanel.toggleAttribute('hidden', !isOpen);
           navPanel.setAttribute('aria-hidden', String(!isOpen));
-          navToggle.setAttribute('aria-expanded', String(isOpen));
+
+          if (navBackdrop) {
+            navBackdrop.dataset.open = String(isOpen);
+            navBackdrop.classList.toggle('hidden', !isOpen);
+            navBackdrop.toggleAttribute('hidden', !isOpen);
+            navBackdrop.setAttribute('aria-hidden', String(!isOpen));
+          }
         };
 
         const toggleNav = () => {
@@ -143,7 +152,13 @@
           setNavState(navPanel.dataset.open === 'true');
         }
 
-        navToggle?.addEventListener('click', toggleNav);
+        navToggle?.addEventListener('click', (event) => {
+          event.preventDefault();
+          toggleNav();
+        });
+
+        navBackdrop?.addEventListener('click', () => setNavState(false));
+
         navLinks.forEach((link) => link.addEventListener('click', () => {
           if (navPanel?.dataset.open === 'true') {
             setNavState(false);

@@ -12,14 +12,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!placeholder) {
         placeholder = document.createElement('div');
         placeholder.id = emptyStateId;
-        placeholder.className = 'col-span-full rounded-3xl border border-dashed border-slate-300/80 bg-white/70 p-10 text-center text-sm text-slate-500 shadow-sm';
+        placeholder.className = 'col-span-full mx-auto max-w-2xl rounded-3xl border border-dashed border-slate-300/80 bg-white/70 p-10 text-center shadow-sm';
         placeholder.innerHTML = `
-          <svg class="mx-auto mb-4 h-10 w-10 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg class="mx-auto h-12 w-12 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 14s1-3 9-3 9 3 9 3" />
             <path d="M7 10a5 5 0 1 1 10 0" />
             <path d="M12 19h.01" />
           </svg>
-          <p data-empty-message></p>
+          <h2 class="mt-4 text-2xl font-semibold text-slate-900" data-empty-message></h2>
+          <p class="mt-3 text-sm text-slate-500">Help your classmates by submitting a lost item report!</p>
         `;
         placeholder.hidden = true;
         itemsGrid.appendChild(placeholder);
@@ -106,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let previewObjectUrl = null;
     let currentFileToken = 0;
     let isProcessingImage = false;
+    let allowOversizedSubmission = false;
 
     const formatBytes = (bytes) => {
       if (!bytes || bytes <= 0) return '0 B';
@@ -126,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
       revokePreviewUrl();
       previewImage.removeAttribute('src');
       previewWrapper.hidden = true;
+      allowOversizedSubmission = false;
       if (sizeNote) {
         sizeNote.hidden = true;
         sizeNote.textContent = '';
@@ -232,14 +235,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const originalSize = file.size;
       const lowerType = (file.type || '').toLowerCase();
       if (!lowerType.startsWith('image/')) {
-        return { file, wasCompressed: false, originalSize, finalSize: originalSize };
+        return { file, wasCompressed: false, originalSize, finalSize: originalSize, allowOversized: false };
       }
 
       if (!COMPRESSIBLE_TYPES.has(lowerType)) {
-        if (originalSize > MAX_IMAGE_BYTES) {
-          throw new Error('unsupported-large');
-        }
-        return { file, wasCompressed: false, originalSize, finalSize: originalSize };
+        return {
+          file,
+          wasCompressed: false,
+          originalSize,
+          finalSize: originalSize,
+          allowOversized: originalSize > MAX_IMAGE_BYTES,
+        };
       }
 
       const renderable = await loadRenderableImage(file);
@@ -308,6 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
           wasCompressed: true,
           originalSize,
           finalSize: compressedFile.size,
+          allowOversized: false,
         };
       } finally {
         renderable.release();
@@ -342,6 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentFileToken += 1;
       const token = currentFileToken;
       isProcessingImage = true;
+      allowOversizedSubmission = false;
       if (submitButton) {
         submitButton.setAttribute('disabled', 'disabled');
         submitButton.setAttribute('data-loading', 'processing-image');
@@ -354,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
+        const originalIsOversized = file.size > MAX_IMAGE_BYTES;
         const prepared = await prepareImageForUpload(file);
         if (token !== currentFileToken) {
           return;
@@ -362,6 +371,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let assigned = false;
         if (prepared.wasCompressed) {
           assigned = assignFileToInput(prepared.file);
+        }
+
+        if (prepared.allowOversized) {
+          allowOversizedSubmission = true;
+        }
+        if (!allowOversizedSubmission && prepared.wasCompressed && originalIsOversized && !assigned) {
+          allowOversizedSubmission = true;
         }
 
         const finalFile = assigned ? fileInput.files?.[0] ?? prepared.file : file;
@@ -376,10 +392,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         console.error(error);
+        allowOversizedSubmission = false;
         let message = 'We could not process this image. Please choose a different photo.';
-        if (error.message === 'unsupported-large') {
-          message = 'This photo format cannot be resized here. Please upload a JPG, PNG, or WebP under 3 MB.';
-        } else if (error.message === 'image-too-large') {
+        if (error.message === 'image-too-large') {
           message = 'We could not shrink this photo under 3 MB. Please choose a smaller image.';
         }
         alert(message);
@@ -413,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const file = fileInput.files?.[0];
       if (!file) return;
-      if (file.size > MAX_IMAGE_BYTES) {
+      if (file.size > MAX_IMAGE_BYTES && !allowOversizedSubmission) {
         event.preventDefault();
         alert('Please choose a photo under 3 MB so we can process it quickly.');
       }

@@ -127,7 +127,9 @@
               toast.dataset.state = 'hidden';
               setTimeout(() => toast.remove(), 300);
             };
-            closeBtn?.addEventListener('click', dismiss);
+            if (closeBtn) {
+              closeBtn.addEventListener('click', dismiss);
+            }
             setTimeout(dismiss, 6000 + index * 1000);
           });
         }

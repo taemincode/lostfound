@@ -1,4 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const userAgent = navigator.userAgent || '';
+  const isIOSDevice = /\b(iPad|iPhone|iPod)\b/.test(userAgent);
+  const isGoogleApp = /\bGSA\b/i.test(userAgent);
+  const supportsAjaxSubmissions = typeof window.fetch === 'function' && typeof window.FormData === 'function';
+  const shouldUseAjaxSubmissions = isIOSDevice && isGoogleApp && supportsAjaxSubmissions;
+
   const itemsGrid = document.getElementById('itemsGrid');
   if (itemsGrid) {
     const cards = Array.from(itemsGrid.querySelectorAll('[data-item]'));
@@ -421,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    reportForm?.addEventListener('submit', (event) => {
+    reportForm?.addEventListener('submit', async (event) => {
       if (isProcessingImage) {
         event.preventDefault();
         return;
@@ -431,7 +437,80 @@ document.addEventListener('DOMContentLoaded', () => {
       if (file.size > MAX_IMAGE_BYTES && !allowOversizedSubmission) {
         event.preventDefault();
         alert('Please choose a photo under 3 MB so we can process it quickly.');
+        return;
       }
+      if (!shouldUseAjaxSubmissions || event.defaultPrevented) {
+        return;
+      }
+      event.preventDefault();
+      submitButton?.setAttribute('disabled', 'disabled');
+      submitButton?.setAttribute('data-loading', 'submitting');
+      try {
+        const formData = new FormData(reportForm);
+        const response = await fetch(reportForm.action, {
+          method: 'POST',
+          body: formData,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin',
+        });
+        const data = await response.json();
+        if (data?.success && data.redirect_url) {
+          window.location.href = data.redirect_url;
+          return;
+        }
+        const message = data?.message || 'We could not submit the form. Please try again.';
+        alert(message);
+      } catch (error) {
+        console.error('Report submit failed', error);
+        try {
+          reportForm.submit();
+          return;
+        } catch {
+          alert('We could not submit the form. Please try again.');
+        }
+      } finally {
+        submitButton?.removeAttribute('data-loading');
+        submitButton?.removeAttribute('disabled');
+      }
+    });
+  }
+
+  if (shouldUseAjaxSubmissions) {
+    const claimForms = document.querySelectorAll('.claim-form');
+    claimForms.forEach((form) => {
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn?.setAttribute('disabled', 'disabled');
+        submitBtn?.setAttribute('data-loading', 'claiming');
+        try {
+          const formData = new FormData(form);
+          const response = await fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+          });
+          const data = await response.json();
+          if (data?.success && data.redirect_url) {
+            window.location.href = data.redirect_url;
+            return;
+          }
+          const message = data?.message || 'We could not update this item. Please try again.';
+          alert(message);
+        } catch (error) {
+          console.error('Claim submit failed', error);
+          try {
+            form.submit();
+            return;
+          } catch {
+            alert('We could not update this item. Please try again.');
+          }
+        } finally {
+          submitBtn?.removeAttribute('data-loading');
+          submitBtn?.removeAttribute('disabled');
+        }
+      });
     });
   }
 });

@@ -10,7 +10,7 @@ from urllib.parse import urljoin, urlparse
 import logging
 from PIL import Image, UnidentifiedImageError
 from pillow_heif import register_heif_opener
-from flask import Flask, render_template, request, redirect, url_for, flash, abort, session
+from flask import Flask, render_template, request, redirect, url_for, flash, abort, session, jsonify
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -135,6 +135,28 @@ def get_admin_redirect_target(default: str = "admin_dashboard") -> str:
     return url_for(default)
 
 
+def wants_json_response() -> bool:
+    requested_with = (request.headers.get("X-Requested-With") or "").lower()
+    if requested_with == "xmlhttprequest":
+        return True
+    accept = (request.headers.get("Accept") or "").lower()
+    return "application/json" in accept
+
+
+def respond_form_error(message: str, *, redirect_to: str | None = None, status_code: int = 400, category: str = "error", redirect_args: dict | None = None):
+    flash(message, category)
+    if wants_json_response():
+        response = jsonify({"success": False, "message": message, "category": category})
+        response.status_code = status_code
+        return response
+    if redirect_to:
+        redirect_args = redirect_args or {}
+        return redirect(url_for(redirect_to, **redirect_args))
+    if request.method == "GET":
+        return redirect(request.url)
+    return redirect(url_for(request.endpoint or "index"))
+
+
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -216,16 +238,13 @@ def report():
         image_file = request.files.get("image")
 
         if not name:
-            flash("Item name is required.", "error")
-            return redirect(url_for("report"))
+            return respond_form_error("Item name is required.", redirect_to="report")
         
         if not image_file or not image_file.filename:
-            flash("Image file is required.", "error")
-            return redirect(url_for("report"))
+            return respond_form_error("Image file is required.", redirect_to="report")
 
         if image_file.mimetype and not image_file.mimetype.lower().startswith("image/"):
-            flash("Unsupported file type. Please upload a photo.", "error")
-            return redirect(url_for("report"))
+            return respond_form_error("Unsupported file type. Please upload a photo.", redirect_to="report")
 
         if not date_found:
             date_found = dt.date.today().isoformat()
@@ -233,22 +252,19 @@ def report():
         try:
             file_bytes = image_file.read()
         except Exception:
-            flash("Image upload failed. Please choose the photo again.", "error")
-            return redirect(url_for("report"))
+            return respond_form_error("Image upload failed. Please choose the photo again.", redirect_to="report")
 
         if not file_bytes:
-            flash("Image upload failed. Please choose the photo again.", "error")
-            return redirect(url_for("report"))
+            return respond_form_error("Image upload failed. Please choose the photo again.", redirect_to="report")
 
         try:
             image_filename = process_and_store_image(file_bytes)
         except ImageProcessingError as exc:
-            flash(str(exc) or "We couldn't process that photo. Please upload PNG, JPG, GIF, WEBP, or HEIC.", "error")
-            return redirect(url_for("report"))
+            message = str(exc) or "We couldn't process that photo. Please upload PNG, JPG, GIF, WEBP, or HEIC."
+            return respond_form_error(message, redirect_to="report")
         except Exception:
             logger.exception("Failed to process image for %s", name)
-            flash("We couldn't process the photo. Please try again.", "error")
-            return redirect(url_for("report"))
+            return respond_form_error("We couldn't process the photo. Please try again.", redirect_to="report")
 
         image_path = os.path.join(app.config["UPLOAD_FOLDER"], image_filename)
 
@@ -274,14 +290,16 @@ def report():
             except OSError as exc:
                 logger.warning("Failed to remove image %s for failed insert: %s", image_path, exc)
             logger.exception("Failed to save report for %s", name)
-            flash("We couldn't save your report. Please try again.", "error")
-            return redirect(url_for("report"))
+            return respond_form_error("We couldn't save your report. Please try again.", redirect_to="report")
         finally:
             conn.close()
 
         flash("Item reported.", "success")
         timestamp = int(dt.datetime.utcnow().timestamp())
-        return redirect(url_for("index", ts=timestamp), code=303)
+        redirect_url = url_for("index", ts=timestamp, _external=True)
+        if wants_json_response():
+            return jsonify({"success": True, "message": "Item reported.", "redirect_url": redirect_url})
+        return redirect(redirect_url, code=303)
 
     # GET
     today = dt.date.today().isoformat()
@@ -399,10 +417,12 @@ def claim_item(item_id: int):
     conn.close()
     if changed:
         flash("Item marked as claimed.", "success")
-    else:
-        flash("Item not found.", "error")
-    timestamp = int(dt.datetime.utcnow().timestamp())
-    return redirect(url_for("item_detail", item_id=item_id, ts=timestamp), code=303)
+        timestamp = int(dt.datetime.utcnow().timestamp())
+        redirect_url = url_for("item_detail", item_id=item_id, ts=timestamp, _external=True)
+        if wants_json_response():
+            return jsonify({"success": True, "message": "Item marked as claimed.", "redirect_url": redirect_url})
+        return redirect(redirect_url, code=303)
+    return respond_form_error("Item not found.", redirect_to="item_detail", redirect_args={"item_id": item_id}, status_code=404)
 
 
 @app.errorhandler(404)

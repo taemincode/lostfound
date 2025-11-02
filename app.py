@@ -181,6 +181,16 @@ init_db()
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 
+@app.after_request
+def add_no_cache_headers(response):
+    endpoint = (request.endpoint or "").split(".")[0]
+    if request.method == "GET" and endpoint != "static":
+        response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 @app.route("/")
 def index():
     conn = get_db_connection()

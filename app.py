@@ -184,8 +184,8 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 @app.after_request
 def add_no_cache_headers(response):
     endpoint = (request.endpoint or "").split(".")[0]
-    if request.method == "GET" and endpoint != "static":
-        response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
+    if endpoint != "static":
+        response.headers["Cache-Control"] = "private, no-store, no-cache, max-age=0, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
     return response
@@ -280,7 +280,8 @@ def report():
             conn.close()
 
         flash("Item reported.", "success")
-        return redirect(url_for("index"))
+        timestamp = int(dt.datetime.utcnow().timestamp())
+        return redirect(url_for("index", ts=timestamp), code=303)
 
     # GET
     today = dt.date.today().isoformat()
@@ -400,7 +401,8 @@ def claim_item(item_id: int):
         flash("Item marked as claimed.", "success")
     else:
         flash("Item not found.", "error")
-    return redirect(url_for("item_detail", item_id=item_id))
+    timestamp = int(dt.datetime.utcnow().timestamp())
+    return redirect(url_for("item_detail", item_id=item_id, ts=timestamp), code=303)
 
 
 @app.errorhandler(404)
